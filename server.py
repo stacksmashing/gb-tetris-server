@@ -192,11 +192,8 @@ class Game:
                 return
             await self.send_lines(msg["lines"], client.uuid)
         elif msg["type"] == "dead":
-            if self.state == self.GAME_STATE_FINISHED:
-                print("User might just have died.. ignore")
-                return
             if self.state != self.GAME_STATE_RUNNING:
-                print("Game is not running. Error.")
+                print("User died while game not running.. Ignoring.")
                 return
             print("User died")
             # Get alive count..
