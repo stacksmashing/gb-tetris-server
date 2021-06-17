@@ -160,8 +160,22 @@ class Game:
             "18"  # T Tile
         ]
         ret = ""
-        for i in range(256):
-            ret += random.choice(tiles)
+        modern = 0 #somehow toggle this in frontend
+        if modern: #7-bag randomization
+
+            i = 0
+            while i < 256:
+                bag = tiles
+                random.shuffle(bag)
+                for tile in bag:
+                    if i < 256:
+                        ret += tile
+                        i += 1
+
+        else: #classic pure random randomization
+            for i in range(256):
+                ret += random.choice(tiles)
+
         return ret
 
 
