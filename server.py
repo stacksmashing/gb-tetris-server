@@ -37,11 +37,9 @@ class Client:
         self.socket = socket
         self.level = 0
         self.state = self.STATE_ALIVE
-        self.randomtype = 0
 
-    def set_game(self, game, random):
+    def set_game(self, game):
         print("Setting game...")
-        self.randomtype = random
         self.game = game
 
     async def process(self):
@@ -79,6 +77,9 @@ class Game:
     GAME_STATE_RUNNING = 1
     GAME_STATE_FINISHED = 2
 
+    RANDOMISATION_CLASSIC = "classic"
+    RANDOMISATION_MODERN = "modern"
+
     def _generate_name(self):
         return ''.join(random.choice(string.ascii_uppercase) for i in range(8))
 
@@ -87,6 +88,7 @@ class Game:
         self.admin_socket = admin_socket
         self.clients = [admin_socket]
         self.state = self.GAME_STATE_LOBBY
+        self.options = {}
     
     def get_gameinfo(self):
         users = []
@@ -97,7 +99,8 @@ class Game:
             "type": "game_info",
             "name": self.name,
             "status": self.state,
-            "users": users
+            "users": users,
+            "options": self.options
         }
 
     async def send_lines(self, lines, sender_uuid):
@@ -131,6 +134,12 @@ class Game:
         self.clients.append(client)
         await self.send_gameinfo()
 
+    async def set_options(self, options):
+        if self.state != self.GAME_STATE_LOBBY:
+            raise("Game not in lobby")
+        self.options = options
+        await self.send_gameinfo()
+
     async def start_game(self):
         self.state = self.GAME_STATE_RUNNING
         await self.send_all({
@@ -162,9 +171,8 @@ class Game:
             "18"  # T Tile
         ]
         ret = ""
-        modern = self.randomtype #if randomtype is 1 it's modern in this case
-        if modern: #7-bag randomisation
-
+        if self.options["randomtype"] == self.RANDOMISATION_MODERN: #7-bag randomisation
+            print(f"Using 7-bag randomisation")
             i = 0
             while i < 256:
                 bag = tiles
@@ -183,7 +191,18 @@ class Game:
 
     async def process(self, client, msg):
         print(f"Processing {client.name} with msg {msg}")
-        if msg["type"] == "start":
+        if msg["type"] == "options":
+            # Check if game state is correct.
+            if self.state != self.GAME_STATE_LOBBY:
+                print("Error: Game already running or finished")
+                return
+            # Check if admin.
+            if client != self.admin_socket:
+                print("Error: Not an admin.")
+                return
+            print("Setting game options.")
+            await self.set_options(msg["options"])
+        elif msg["type"] == "start":
             # Check if game state is correct.
             if self.state != self.GAME_STATE_LOBBY:
                 print("Error: Game already running or finished")
@@ -279,8 +298,7 @@ async def newserver(websocket, path):
     }))
 
     # Either create a new game
-    if(path.startswith("/create/"):
-        randomisation = path[7:]
+    if(path == "/create"):
         print("Create game")
         new_game = Game(client)
         while new_game.name in games:
