@@ -37,9 +37,11 @@ class Client:
         self.socket = socket
         self.level = 0
         self.state = self.STATE_ALIVE
-    
-    def set_game(self, game):
+        self.randomtype = 0
+
+    def set_game(self, game, random):
         print("Setting game...")
+        self.randomtype = random
         self.game = game
 
     async def process(self):
@@ -160,8 +162,8 @@ class Game:
             "18"  # T Tile
         ]
         ret = ""
-        modern = 0 #somehow toggle this in frontend
-        if modern: #7-bag randomization
+        modern = self.randomtype #if randomtype is 1 it's modern in this case
+        if modern: #7-bag randomisation
 
             i = 0
             while i < 256:
@@ -172,7 +174,7 @@ class Game:
                         ret += tile
                         i += 1
 
-        else: #classic pure random randomization
+        else: #classic pure random randomisation
             for i in range(256):
                 ret += random.choice(tiles)
 
@@ -277,7 +279,8 @@ async def newserver(websocket, path):
     }))
 
     # Either create a new game
-    if(path == "/create"):
+    if(path.startswith("/create/"):
+        randomisation = path[7:]
         print("Create game")
         new_game = Game(client)
         while new_game.name in games:
