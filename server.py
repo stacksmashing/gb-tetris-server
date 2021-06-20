@@ -64,6 +64,12 @@ class Client:
         await self.socket.send(f)
         print("Done")
     
+    async def send_loss(self):
+        print("Sending loss")
+        await self.send(json.dumps({
+            "type": "loss"
+        }))
+
     def serialize(self):
         return {
             "name": self.name,
@@ -191,6 +197,24 @@ class Game:
                 print("Game is not running. Error.")
                 return
             await self.send_lines(msg["lines"], client.uuid)
+        elif msg["type"] == "win":
+            if self.state == self.GAME_STATE_FINISHED:
+                print("User just won, but too late")
+                return
+            if self.state != self.GAME_STATE_RUNNING:
+                print("Game is not running. Error.")
+                return
+            print("User won")
+            client.set_winner()
+            for c in self.clients:
+                # Ignore ourselves
+                if c == client:
+                    print("Ignoring ourselves")
+                    continue
+                c.set_dead()
+                await c.send_loss()
+            self.state = self.GAME_STATE_FINISHED
+            await self.send_gameinfo()
         elif msg["type"] == "dead":
             if self.state == self.GAME_STATE_FINISHED:
                 print("User might just have died.. ignore")
